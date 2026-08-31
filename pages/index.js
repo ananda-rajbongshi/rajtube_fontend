@@ -39,7 +39,7 @@ export default function RajtubeMusic() {
     }
   }, []);
 
-  // 📜 Fetch Playlists from Database
+  // 📜 Fetch Playlists from Database for logged-in user
   const fetchPlaylists = async (userId) => {
     try {
       const res = await fetch(`${API_BASE}/api/playlists/user/${userId}`);
@@ -122,36 +122,36 @@ export default function RajtubeMusic() {
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
-  // 🔐 Register / Login Handlers
+  // 🔐 Real Login & Registration API Handler
   const handleAuth = async (e) => {
     e.preventDefault();
     setAuthError('');
 
-    if (authMode === 'register') {
-      try {
-        const res = await fetch(`${API_BASE}/api/register`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, email, password })
-        });
-        const data = await res.json();
-        if (res.ok) {
-          const userData = { id: data.user_id, username };
-          setUser(userData);
-          localStorage.setItem('rajtube_user', JSON.stringify(userData));
-          fetchPlaylists(data.user_id);
-        } else {
-          setAuthError(data.detail || 'রেজিস্ট্রেশন ব্যর্থ হয়েছে!');
-        }
-      } catch (err) {
-        setAuthError('সার্ভারে কানেক্ট করা যাচ্ছে না!');
+    const endpoint = authMode === 'register' ? '/api/register' : '/api/login';
+    const bodyData = authMode === 'register' 
+      ? { username, email, password } 
+      : { username, password };
+
+    try {
+      const res = await fetch(`${API_BASE}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyData)
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        const userData = { id: data.user_id, username: data.username || username };
+        setUser(userData);
+        localStorage.setItem('rajtube_user', JSON.stringify(userData));
+        
+        // 📜 Fetch Playlists of this specific User from Neon DB
+        fetchPlaylists(data.user_id);
+      } else {
+        setAuthError(data.detail || 'লগইন/সাইনআপ ব্যর্থ হয়েছে!');
       }
-    } else {
-      // Demo login session with persistent database fetch
-      const userData = { id: 1, username: username || 'ananda' };
-      setUser(userData);
-      localStorage.setItem('rajtube_user', JSON.stringify(userData));
-      fetchPlaylists(userData.id);
+    } catch (err) {
+      setAuthError('সার্ভারে কানেক্ট করা যাচ্ছে না!');
     }
   };
 
@@ -179,7 +179,7 @@ export default function RajtubeMusic() {
       fetchSongs(created.id);
       setNewPlaylistName('');
     } catch (err) {
-      alert('প্লেলিস্ট তৈরি করা যায়নি!');
+      alert('প্লেলিস্ট তৈরি করা যায়নি!');
     }
   };
 
@@ -221,7 +221,7 @@ export default function RajtubeMusic() {
         setArtistName('');
       }
     } catch (err) {
-      alert('গান যোগ করা সম্ভব হয়নি!');
+      alert('গান যোগ করা সম্ভব হয়নি!');
     }
   };
 
@@ -253,7 +253,7 @@ export default function RajtubeMusic() {
             <Music className="w-8 h-8" />
           </div>
           <h1 className="text-2xl font-bold mb-1 tracking-tight text-white">Rajtube Music</h1>
-          <p className="text-slate-400 text-xs mb-6">আপনার ব্যক্তিগত ব্যাকগ্রাউন্ড মিউজিক প্লেয়ার</p>
+          <p className="text-slate-400 text-xs mb-6">আপনার ব্যক্তিগত ব্যাকগ্রাউন্ড মিউজিক প্লেয়ার</p>
 
           <form onSubmit={handleAuth} className="space-y-3">
             <input
@@ -276,7 +276,7 @@ export default function RajtubeMusic() {
             )}
             <input
               type="password"
-              placeholder="পাসওয়ার্ড"
+              placeholder="পাসওয়ার্ড"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500"
@@ -359,7 +359,7 @@ export default function RajtubeMusic() {
                   <Music className="w-3.5 h-3.5" /> {pl.name}
                 </button>
               ))}
-              {playlists.length === 0 && <p className="text-xs text-slate-500 py-4 text-center">কোনো প্লেলিস্ট পাওয়া যায়নি</p>}
+              {playlists.length === 0 && <p className="text-xs text-slate-500 py-4 text-center">কোনো প্লেলিস্ট পাওয়া যায়নি</p>}
             </div>
           </div>
         </div>
@@ -422,7 +422,7 @@ export default function RajtubeMusic() {
                       </div>
                     </div>
                   ))}
-                  {songs.length === 0 && <p className="text-xs text-center text-slate-500 py-8">এই প্লেলিস্টে এখনো কোনো গান যোগ করা হয়নি</p>}
+                  {songs.length === 0 && <p className="text-xs text-center text-slate-500 py-8">এই প্লেলিস্টে এখনো কোনো গান যোগ করা হয়নি</p>}
                 </div>
               </div>
             </>
