@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
-import { Play, Pause, SkipForward, Music, Plus, LogOut, User, FolderPlus, Trash2, ListMusic, Lock, Mail, Sparkles } from 'lucide-react';
+import { Play, Pause, Music, Plus, LogOut, User, FolderPlus, ListMusic, Sparkles } from 'lucide-react';
 
 const API_BASE = "https://rajtube-backend-lbap.onrender.com";
 
@@ -35,8 +35,26 @@ export default function RajtubeMusic() {
     if (savedUser) {
       const parsed = JSON.parse(savedUser);
       setUser(parsed);
+      fetchPlaylists(parsed.id);
     }
   }, []);
+
+  // 📜 Fetch Playlists from Database
+  const fetchPlaylists = async (userId) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/playlists/user/${userId}`);
+      const data = await res.json();
+      if (data.playlists) {
+        setPlaylists(data.playlists);
+        if (data.playlists.length > 0 && !activePlaylist) {
+          setActivePlaylist(data.playlists[0]);
+          fetchSongs(data.playlists[0].id);
+        }
+      }
+    } catch (err) {
+      console.error("Playlists fetch error:", err);
+    }
+  };
 
   // YouTube IFrame Player API Setup for Background Audio
   useEffect(() => {
@@ -72,7 +90,6 @@ export default function RajtubeMusic() {
     }
   };
 
-  // Browser Media Session for Lock Screen / Background Play Controls
   const setupMediaSession = () => {
     if ('mediaSession' in navigator && currentSong) {
       navigator.mediaSession.metadata = new MediaMetadata({
@@ -122,6 +139,7 @@ export default function RajtubeMusic() {
           const userData = { id: data.user_id, username };
           setUser(userData);
           localStorage.setItem('rajtube_user', JSON.stringify(userData));
+          fetchPlaylists(data.user_id);
         } else {
           setAuthError(data.detail || 'রেজিস্ট্রেশন ব্যর্থ হয়েছে!');
         }
@@ -129,15 +147,19 @@ export default function RajtubeMusic() {
         setAuthError('সার্ভারে কানেক্ট করা যাচ্ছে না!');
       }
     } else {
-      // Login Logic (Demo Session)
-      const userData = { id: 1, username: username || 'User' };
+      // Demo login session with persistent database fetch
+      const userData = { id: 1, username: username || 'ananda' };
       setUser(userData);
       localStorage.setItem('rajtube_user', JSON.stringify(userData));
+      fetchPlaylists(userData.id);
     }
   };
 
   const handleLogout = () => {
     setUser(null);
+    setPlaylists([]);
+    setSongs([]);
+    setActivePlaylist(null);
     localStorage.removeItem('rajtube_user');
   };
 
@@ -151,8 +173,10 @@ export default function RajtubeMusic() {
       });
       const data = await res.json();
       const created = { id: data.playlist_id, name: data.name };
-      setPlaylists([...playlists, created]);
+      const updated = [created, ...playlists];
+      setPlaylists(updated);
       setActivePlaylist(created);
+      fetchSongs(created.id);
       setNewPlaylistName('');
     } catch (err) {
       alert('প্লেলিস্ট তৈরি করা যায়নি!');
@@ -222,13 +246,13 @@ export default function RajtubeMusic() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 font-sans">
         <Head><title>Rajtube Music — Login</title></Head>
         <div className="max-w-md w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-8 shadow-2xl backdrop-blur-xl text-center">
           <div className="w-16 h-16 bg-indigo-600/10 text-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-indigo-500/20 text-2xl">
             <Music className="w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-bold mb-1 tracking-tight">Rajtube Music</h1>
+          <h1 className="text-2xl font-bold mb-1 tracking-tight text-white">Rajtube Music</h1>
           <p className="text-slate-400 text-xs mb-6">আপনার ব্যক্তিগত ব্যাকগ্রাউন্ড মিউজিক প্লেয়ার</p>
 
           <form onSubmit={handleAuth} className="space-y-3">
@@ -278,13 +302,11 @@ export default function RajtubeMusic() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans pb-24">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans pb-24 selection:bg-indigo-500 selection:text-white">
       <Head><title>Rajtube Music Player</title></Head>
 
-      {/* Hidden YouTube Audio Engine */}
       <div id="hidden-youtube-player" className="hidden"></div>
 
-      {/* Top Navigation */}
       <header className="border-b border-slate-800/80 bg-slate-900/40 backdrop-blur-xl px-6 py-4 flex justify-between items-center sticky top-0 z-40">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-indigo-600/20 text-indigo-400 rounded-xl flex items-center justify-center border border-indigo-500/30">
@@ -303,9 +325,7 @@ export default function RajtubeMusic() {
         </div>
       </header>
 
-      {/* Main Content Layout */}
       <main className="max-w-7xl mx-auto w-full p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 flex-1">
-        {/* Sidebar: Playlists */}
         <div className="space-y-4">
           <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl backdrop-blur-md">
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
@@ -325,7 +345,7 @@ export default function RajtubeMusic() {
 
           <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl backdrop-blur-md space-y-2">
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-2">
-              <ListMusic className="w-4 h-4 text-pink-400" /> আপনার প্লেলিস্ট
+              <ListMusic className="w-4 h-4 text-pink-400" /> আপনার প্লেলিস্ট ({playlists.length})
             </h2>
             <div className="space-y-1.5 max-h-64 overflow-y-auto">
               {playlists.map((pl) => (
@@ -344,11 +364,9 @@ export default function RajtubeMusic() {
           </div>
         </div>
 
-        {/* Songs & Add Song Area */}
         <div className="md:col-span-2 space-y-4">
           {activePlaylist ? (
             <>
-              {/* Add Song Form */}
               <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl backdrop-blur-md space-y-3">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
                   <Plus className="w-4 h-4 text-emerald-400" /> "{activePlaylist.name}" এ নতুন গান যোগ করুন
@@ -381,7 +399,6 @@ export default function RajtubeMusic() {
                 </form>
               </div>
 
-              {/* Songs List */}
               <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl backdrop-blur-md space-y-2">
                 <h3 className="text-xs font-bold text-slate-300 border-b border-slate-800 pb-2">গানের তালিকা</h3>
                 <div className="space-y-2">
@@ -418,7 +435,6 @@ export default function RajtubeMusic() {
         </div>
       </main>
 
-      {/* Persistent Bottom Background Audio Bar */}
       {currentSong && (
         <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-800/90 backdrop-blur-2xl p-3 z-50 px-6 flex items-center justify-between shadow-2xl">
           <div className="flex items-center gap-3">
